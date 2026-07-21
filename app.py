@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import io, openpyxl
-from openpyxl.styles import (Font, PatternFill, Alignment,
+from openpyxl.styles import (Font, PatternFill, Alignment,  
                               Border, Side, numbers)
 from openpyxl.utils import get_column_letter
 
@@ -262,7 +262,7 @@ def buat_excel(nama,kota_nama,tipe,pjg,ks,ls_label,ls_val,hs,kota,periodes,hasil
         r+=1
 
     # Lebar kolom
-    for col,w in zip("ABCDEFGHIJ",[5,20,14,14,14,10,8,14,12,35]):
+    for col,w in zip("ABCDEFGHIJ",[5,20,14,14,14,10,8,14,12,35,3]):
         ws.column_dimensions[col].width = w
 
     # ─── SHEET per PERIODE ───────────────────────────────────────
@@ -605,14 +605,17 @@ with st.sidebar:
     if tipe=="2/2-TT":
         split=st.slider("Pemisah Arah % dominan",50,70,50,5)
 
-    # ── Jumlah periode (fleksibel 1–6) ──────────────────────────
+    # ── Jumlah periode (fleksibel 1–14) ──────────────────────────
     st.divider()
     st.subheader("📅 Volume per Periode")
-    n_per = st.number_input("Jumlah periode analisis",1,6,3,1)
+    n_per = st.number_input("Jumlah periode analisis",1,14,3,1)
     st.caption("Total kedua arah" if tipe=="2/2-TT" else "Satu arah dianalisis")
 
     DEFAULT_JAM = ["07.00–08.00","12.00–13.00","17.00–18.00",
-                   "16.00–17.00","18.00–19.00","19.00–20.00"]
+                   "16.00–17.00","18.00–19.00","19.00–20.00",
+                   "06.00–07.00","08.00–09.00","09.00–10.00",
+                   "10.00–11.00","13.00–14.00","14.00–15.00",
+                   "15.00–16.00","20.00–21.00"]
     periodes=[]
     for i in range(int(n_per)):
         with st.expander(f"Periode {i+1}",expanded=(i==0)):
