@@ -79,11 +79,34 @@ FCHS_KEREB = {
 # Tabel 4-7: FCUK
 FCUK_T = {"< 0,1 juta":0.86,"0,1 – 0,5 juta":0.90,
            "0,5 – 1,0 juta":0.94,"1,0 – 3,0 juta":1.00,"> 3,0 juta":1.04}
-# Gambar 4-1 (2/2-TT) & 4-2 (terbagi): titik referensi (DJ, rasio vT/vB)
-VT_22TT   = [(0.00,1.000),(0.20,0.953),(0.40,0.887),(0.60,0.821),
-             (0.70,0.748),(0.80,0.648),(0.90,0.502),(1.00,0.353)]
-VT_TERBAGI= [(0.00,1.000),(0.20,0.963),(0.40,0.913),(0.60,0.856),
-             (0.70,0.813),(0.80,0.738),(0.90,0.594),(1.00,0.394)]
+# Gambar 4-1 (2/2-TT) & 4-2 (terbagi): rumus polinomial vT = f(DJ) per kelas vB
+# (hasil regresi kurva, menggantikan pembacaan titik+interpolasi)
+def _vt_22tt_30(dj):
+    return (-5.4356*dj**5)-(7.3788*dj**4)+(18.358*dj**3)-(8.9749*dj**2)-(8.7817*dj)+29.985
+def _vt_22tt_40(dj):
+    return (-37.91*dj**5)+(58*dj**4)-(24.843*dj**3)+(0.7485*dj**2)-(12.598*dj)+39.949
+def _vt_22tt_50(dj):
+    return (-114.09*dj**5)+(238.5*dj**4)-(178.49*dj**3)+(55.425*dj**2)-(22.523*dj)+50.08
+def _vt_22tt_60(dj):
+    return (65.539*dj**5)-(175.99*dj**4)+(153.51*dj**3)-(51.563*dj**2)-(14.391*dj)+59.951
+def _vt_22tt_70(dj):
+    return (93.528*dj**5)-(268.17*dj**4)+(255.73*dj**3)-(97.001*dj**2)-(10.813*dj)+69.943
+
+def _vt_terbagi_40(dj):
+    return 40-2*dj-9*dj**2
+def _vt_terbagi_50(dj):
+    return (-174.97*dj**5)+(372.77*dj**4)-(277.37*dj**3)+(70.096*dj**2)-(10.286*dj)+50.138
+def _vt_terbagi_60(dj):
+    return (-320.9*dj**5)+(697.12*dj**4)-(535.4*dj**3)+(155.55*dj**2)-(21.56*dj)+60.141
+def _vt_terbagi_70(dj):
+    return (-310.7*dj**5)+(660.54*dj**4)-(492.75*dj**3)+(132.95*dj**2)-(18.888*dj)+70.124
+def _vt_terbagi_80(dj):
+    return (-96.126*dj**5)+(138.88*dj**4)-(50.019*dj**3)-(22.106*dj**2)-(1.7704*dj)+80.111
+
+RUMUS_VT_22TT    = {30:_vt_22tt_30, 40:_vt_22tt_40, 50:_vt_22tt_50,
+                     60:_vt_22tt_60, 70:_vt_22tt_70}
+RUMUS_VT_TERBAGI = {40:_vt_terbagi_40, 50:_vt_terbagi_50, 60:_vt_terbagi_60,
+                     70:_vt_terbagi_70, 80:_vt_terbagi_80}
 
 # ══════════════════════════════════════════════════════════════════
 # FUNGSI INTI
@@ -91,13 +114,22 @@ VT_TERBAGI= [(0.00,1.000),(0.20,0.963),(0.40,0.913),(0.60,0.856),
 def _td(tbl, v):
     return min(tbl.keys(), key=lambda k: abs(k-v))
 
-def _interp(dj, tbl):
-    if dj<=tbl[0][0]:  return tbl[0][1]
-    if dj>=tbl[-1][0]: return tbl[-1][1]
-    for i in range(len(tbl)-1):
-        x0,y0=tbl[i]; x1,y1=tbl[i+1]
-        if x0<=dj<=x1: return y0+(y1-y0)*(dj-x0)/(x1-x0)
-    return tbl[-1][1]
+def _vt_formula(vb, dj, tipe):
+    """Evaluasi rumus polinomial vT=f(DJ) (Gambar 4-1/4-2 PKJI 2023) tanpa pembulatan
+    akhir — dipakai untuk menggambar kurva halus. vB dibulatkan ke kelas kurva acuan
+    terdekat (kelipatan 10: 30/40/50/60/70 untuk 2/2-TT, 40/50/60/70/80 untuk jalan
+    terbagi), dan DJ dibatasi maksimum 1,00 karena rumus hanya valid pada rentang kurva
+    resmi PKJI 2023 (di luar itu vT ditahan pada nilai DJ=1,00, sama seperti kondisi
+    kolaps LOS F pada sistem sebelumnya)."""
+    tabel_rumus = RUMUS_VT_22TT if tipe=="2/2-TT" else RUMUS_VT_TERBAGI
+    vb_key = _td(tabel_rumus, vb)
+    dj_aman = min(max(dj,0.0),1.00)
+    return tabel_rumus[vb_key](dj_aman)
+
+def hitung_vt(vb, dj, tipe):
+    """Nilai vT akhir (dibulatkan tanpa angka desimal) sesuai rumus polinomial
+    Gambar 4-1/4-2 PKJI 2023."""
+    return round(_vt_formula(vb, dj, tipe))
 
 def _k6(v): return 1-0.8*(1-v)
 
@@ -144,8 +176,7 @@ def hitung(tipe,lebar,ks,ls,hs,kota,split,kr,kb,sm,pjg):
     c=co*fclj*fcpa*fchs*fcuk
 
     dj=q/c if c>0 else 0
-    tbl_vt=VT_22TT if tipe=="2/2-TT" else VT_TERBAGI
-    vt=vb*_interp(dj,tbl_vt)
+    vt=hitung_vt(vb,dj,tipe)
     wt=(pjg/vt*60) if vt>0 else 0
     los,desk,warna=_los(dj)
     return dict(emp=emp,vol=vol,q_kr=kr*emp["KR"],q_kb=kb*emp["KS"],
@@ -399,7 +430,6 @@ def gauge(dj, label=""):
 # ══════════════════════════════════════════════════════════════════
 def kurva_vt(h, tipe, key=""):
     vb_list  = [30,40,50,60,70] if tipe=="2/2-TT" else [40,50,60,70,80]
-    tbl      = VT_22TT if tipe=="2/2-TT" else VT_TERBAGI
     judul    = ("Gambar 4-1 — Tipe 2/2-TT" if tipe=="2/2-TT"
                 else "Gambar 4-2 — Tipe 4/2-T, 6/2-T, 8/2-T")
     dj_s = [i/100 for i in range(0,71,2)]
@@ -407,12 +437,12 @@ def kurva_vt(h, tipe, key=""):
     clrs = ["#3498db","#2ecc71","#f39c12","#e74c3c","#9b59b6"]
     fig = go.Figure()
     for vb,c in zip(vb_list,clrs):
-        fig.add_trace(go.Scatter(x=dj_s,y=[vb*_interp(d,tbl) for d in dj_s],
+        fig.add_trace(go.Scatter(x=dj_s,y=[_vt_formula(vb,d,tipe) for d in dj_s],
             mode="lines",line=dict(color=c,width=2),name=f"vB={vb}",legendgroup=f"{vb}"))
-        fig.add_trace(go.Scatter(x=dj_d,y=[vb*_interp(d,tbl) for d in dj_d],
+        fig.add_trace(go.Scatter(x=dj_d,y=[_vt_formula(vb,d,tipe) for d in dj_d],
             mode="lines",line=dict(color=c,width=2,dash="dash"),
             showlegend=False,legendgroup=f"{vb}"))
-        fig.add_annotation(x=0.01,y=vb*_interp(0.01,tbl),
+        fig.add_annotation(x=0.01,y=_vt_formula(vb,0.01,tipe),
             text=f"  {vb}",showarrow=False,font=dict(size=10,color=c),xanchor="left")
     # Titik kondisi saat ini
     fig.add_trace(go.Scatter(x=[h["dj"]],y=[h["vt"]],mode="markers",
