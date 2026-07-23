@@ -112,10 +112,10 @@ def hitung_emp(tipe, vol, lebar):
     return {"KR":1.0,"KS":ks,"SM":sm}
 
 def _los(dj):
-    if   dj<=0.20: return "A","Arus bebas, kepadatan sangat rendah","success"
+    if   dj<=0.19: return "A","Arus bebas, kepadatan sangat rendah","success"
     elif dj<=0.44: return "B","Arus stabil, kecepatan sedikit terpengaruh","success"
-    elif dj<=0.64: return "C","Arus stabil, kecepatan & manuver mulai terbatas","warning"
-    elif dj<=0.82: return "D","Arus mendekati tidak stabil, kecepatan menurun","warning"
+    elif dj<=0.69: return "C","Arus stabil, kecepatan & manuver mulai terbatas","warning"
+    elif dj<=0.84: return "D","Arus mendekati tidak stabil, kecepatan menurun","warning"
     elif dj<=1.00: return "E","Arus tidak stabil, kondisi kritis","error"
     else:          return "F","Arus terhambat / macet","error"
 
